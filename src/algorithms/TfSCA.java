@@ -14,8 +14,9 @@ import lib.Graph;
 
 /**
  * Classification for undirected weighted graph
+ * 
  * @author Morad A.
- * NOTE: COV is a deprecated term 
+ *         NOTE: COV is a deprecated term
  */
 public class TfSCA {
     public Graph G;
@@ -24,6 +25,7 @@ public class TfSCA {
     public ArrayList<String> unclustered;
     public ArrayList<String> heads;
     public boolean moreClusterss = false;
+
     public TfSCA(Graph tG, double tHC, double tUC, double tLM, boolean moreClusters, boolean moreClusterss) {
         G = tG;
         headCutoff = tHC;
@@ -36,21 +38,72 @@ public class TfSCA {
     public ArrayList<ArrayList<String>> run() {
         ArrayList<ArrayList<String>> clusters = new ArrayList<>();
         /* Triangle Amplification */
-        for(String node : G.nodes.keySet()) {
-            /* Get outdegree */
-            ArrayList<String> outdegrees = G.getOutdegree(node);
-            outdegrees.addAll(G.getIndegree(node)); // -> Indegrees
-            /* for each outdegree, get the outdegree */
-            for(String outdegree : outdegrees) {
-                ArrayList<String> odOutdegrees = G.getOutdegree(outdegree);
-                odOutdegrees.addAll(G.getIndegree(node));
-                odOutdegrees.retainAll(outdegrees);
-                
-                for(String common : odOutdegrees) {
-                    G.editWeight(node, common, G.getWeight(node, common) * (loopMultiplier+1.0));
-                    G.editWeight(outdegree, common, G.getWeight(outdegree, common) * (loopMultiplier+1.0));
+        ArrayList<String> tempNodes = new ArrayList<>();
+        tempNodes.addAll(G.nodes.keySet()); // All nodes are either 'n', 'nOD', or 'Cx'
+        while (tempNodes.size() > 0) {
+            String n = tempNodes.get(0);
+            // Get All outdegrees for looping
+            ArrayList<String> nOutDegrees = G.getOutdegree(n);
+            // Get All Indegrees
+            ArrayList<String> nInDegrees = G.getIndegree(n);
+
+            // nOD: nOutDegree
+            for (String nOD : nOutDegrees) {
+                // Define S2 as indeg/outdeg of each node n
+                ArrayList<String> S2OutDegrees = G.getOutdegree(nOD);
+                ArrayList<String> S2InDegrees = G.getIndegree(nOD);
+                /*
+                 * Find common element(s) [Cx] in one of 4 cases while n -> nOD:
+                 * 1. n -> Cx -> nOD , set denoted by Cx1
+                 * 2. n -> Cx <- nOD , set denoted by Cx2
+                 * 3. n <- Cx -> nOD , set denoted by Cx3
+                 * 4. n <- Cx <- nOD , set denoted by Cx4
+                 * If Cx appears in more than one case, one case is considered
+                 */
+
+                ArrayList<String> excludedCx = new ArrayList<>();
+                // 1
+                ArrayList<String> Cx1 = new ArrayList<>(
+                        nOutDegrees.stream().filter(S2InDegrees::contains).collect(Collectors.toList()));
+                Cx1.removeIf(excludedCx::contains);
+                for (String Cx1E : Cx1) {
+                    G.multiplyWeight(n, Cx1E, loopMultiplier);
+                    G.multiplyWeight(Cx1E, nOD, loopMultiplier);
+                    excludedCx.add(Cx1E);
                 }
+                // 2. n -> Cx <- nOD , set denoted by Cx2
+                ArrayList<String> Cx2 = new ArrayList<>(
+                        nOutDegrees.stream().filter(S2OutDegrees::contains).collect(Collectors.toList()));
+                Cx2.removeIf(excludedCx::contains);
+                for (String Cx2E : Cx2) {
+                    G.multiplyWeight(n, Cx2E, loopMultiplier);
+                    G.multiplyWeight(nOD, Cx2E, loopMultiplier);
+                    excludedCx.add(Cx2E);
+                }
+                // 4. n <- Cx <- nOD , set denoted by Cx4
+                ArrayList<String> Cx4 = new ArrayList<>(
+                        nInDegrees.stream().filter(S2OutDegrees::contains).collect(Collectors.toList()));
+                Cx4.removeIf(excludedCx::contains);
+                for (String Cx4E : Cx4) {
+                    G.multiplyWeight(Cx4E, n, loopMultiplier);
+                    G.multiplyWeight(nOD, Cx4E, loopMultiplier);
+                    excludedCx.add(Cx4E);
+                }
+                // 3. n <- Cx -> nOD , set denoted by Cx3
+                ArrayList<String> Cx3 = new ArrayList<>(
+                        nInDegrees.stream().filter(S2InDegrees::contains).collect(Collectors.toList()));
+                Cx3.removeIf(excludedCx::contains);
+                for (String Cx3E : Cx3) {
+                    G.multiplyWeight(Cx3E, n, loopMultiplier);
+                    G.multiplyWeight(Cx3E, nOD, loopMultiplier);
+                    excludedCx.add(Cx3E);
+                }
+
+                tempNodes.removeAll(excludedCx);
+                tempNodes.remove(nOD);
             }
+
+            tempNodes.remove(n); // Remove n
         }
         /* 1. Node property for COV calculation */
         COVCalculation();
@@ -59,15 +112,20 @@ public class TfSCA {
         unclustered = unclusteredClassify();
         ArrayList<String> clusteredNodes = new ArrayList<>();
         /* 3. Iterate over head */
-        for(String head : heads) {
+        for (String head : heads) {
             HashMap<String, Double> DegreeWeights = new HashMap<>();
             ArrayList<String> headOutDegrees = G.getOutdegree(head);
             ArrayList<String> headInDegrees = G.getIndegree(head);
 
-            for(String out : headOutDegrees) DegreeWeights.put(out, G.getWeight(head, out));
-            for(String in : headInDegrees) DegreeWeights.put(in, G.getWeight(in, head));
+            for (String out : headOutDegrees)
+                DegreeWeights.put(out, G.getWeight(head, out));
+            for (String in : headInDegrees)
+                DegreeWeights.put(in, G.getWeight(in, head));
 
-            List<String> topKeys = DegreeWeights.entrySet().stream().filter(e -> e.getValue() >= DegreeWeights.values().stream().sorted().skip((int)(Math.ceil(DegreeWeights.size() * 0.5))).findFirst().orElse(0.0)).map(Map.Entry::getKey).collect(Collectors.toList());
+            List<String> topKeys = DegreeWeights.entrySet().stream()
+                    .filter(e -> e.getValue() >= DegreeWeights.values().stream().sorted()
+                            .skip((int) (Math.ceil(DegreeWeights.size() * 0.5))).findFirst().orElse(-1.0))
+                    .map(Map.Entry::getKey).collect(Collectors.toList());
 
             topKeys.add(head);
 
@@ -75,8 +133,9 @@ public class TfSCA {
             clusteredNodes.addAll(topKeys);
         }
 
-        if(! moreClusters) return clusters;
-        
+        if (!moreClusters)
+            return clusters;
+
         /* If we want more clusters */
         ArrayList<String> leftOverNodes = new ArrayList<>(G.nodes.keySet());
         leftOverNodes.removeAll(heads);
@@ -88,13 +147,18 @@ public class TfSCA {
                 /* Find outdegrees and their weight */
                 ArrayList<String> headOutDegrees = G.getOutdegree(loN);
                 ArrayList<String> headInDegrees = G.getIndegree(loN);
-                //headInDegrees.removeAll(unclustered);
-                //headOutDegrees.removeAll(unclustered);
+                // headInDegrees.removeAll(unclustered);
+                // headOutDegrees.removeAll(unclustered);
                 HashMap<String, Double> headOutDegreeWeights = new HashMap<>();
-                for(String outDegree : headOutDegrees) headOutDegreeWeights.put(outDegree, G.getWeight(loN, outDegree));
-                for(String outDegree : headInDegrees) headOutDegreeWeights.put(outDegree, G.getWeight(outDegree, loN));
+                for (String outDegree : headOutDegrees)
+                    headOutDegreeWeights.put(outDegree, G.getWeight(loN, outDegree));
+                for (String outDegree : headInDegrees)
+                    headOutDegreeWeights.put(outDegree, G.getWeight(outDegree, loN));
                 /* Find highest 50% nodes with weights */
-                List<String> topKeys = headOutDegreeWeights.entrySet().stream().filter(e -> e.getValue() >= headOutDegreeWeights.values().stream().sorted().skip((int)(Math.ceil(headOutDegreeWeights.size() * 0.5))).findFirst().orElse(0.0)).map(Map.Entry::getKey).collect(Collectors.toList());
+                List<String> topKeys = headOutDegreeWeights.entrySet().stream()
+                        .filter(e -> e.getValue() >= headOutDegreeWeights.values().stream().sorted()
+                                .skip((int) (Math.ceil(headOutDegreeWeights.size() * 0.5))).findFirst().orElse(0.0))
+                        .map(Map.Entry::getKey).collect(Collectors.toList());
                 /* Cluster them */
                 topKeys.add(loN);
                 clusters.add(new ArrayList<>(topKeys));
@@ -109,25 +173,30 @@ public class TfSCA {
 
     public void COVCalculation() {
         /* 1. Iterate over all nodes */
-        for(String node : G.nodes.keySet()) {
+        for (String node : G.nodes.keySet()) {
             ArrayList<Double> weights = new ArrayList<>();
 
             ArrayList<String> Indegrees = G.getIndegree(node);
             ArrayList<String> Outdegrees = G.getOutdegree(node);
 
-            for(String indegree : Indegrees) weights.add(G.getWeight(indegree, node));
-            for(String outdegree : Outdegrees) weights.add(G.getWeight(node, outdegree));
+            for (String indegree : Indegrees)
+                weights.add(G.getWeight(indegree, node));
+            for (String outdegree : Outdegrees)
+                weights.add(G.getWeight(node, outdegree));
 
             double sum = 0.0;
-            for (double num : weights) sum += num;
+            for (double num : weights)
+                sum += num;
             double mean = sum / weights.size();
 
             double variance = 0.0;
-            for (double num : weights) variance += Math.pow(num - mean, 2);
+            for (double num : weights)
+                variance += Math.pow(num - mean, 2);
 
-            /* 
+            /*
              * You can change the formula to see if accuracy is better
-             * If you have an equation that can result in a better accuracy, please contact me at Zelakolase@tuta.io
+             * If you have an equation that can result in a better accuracy, please contact
+             * me at Zelakolase@tuta.io
              * weights.size is the number of edges (indeg/outdeg) for a specific node
              */
             double stddev = mean - (variance / weights.size());
@@ -175,7 +244,8 @@ public class TfSCA {
 
         /* Adds nodes to the custom comparator */
         for (String node : G.nodes.keySet()) {
-            if(G.getIndegree(node).size() + G.getOutdegree(node).size() > 1) pq.offer(node);
+            if (G.getIndegree(node).size() + G.getOutdegree(node).size() > 1)
+                pq.offer(node);
         }
 
         /* Draws N nodes from custom comparator */
