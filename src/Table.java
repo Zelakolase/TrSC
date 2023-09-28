@@ -23,10 +23,7 @@ public class Table {
         GO_IDs.add("GO:0016032"); GO_IDs.add("GO:0022414"); GO_IDs.add("GO:0040007"); GO_IDs.add("GO:0000003"); 
         GO_IDs.add("GO:0040011"); GO_IDs.add("GO:0042592"); GO_IDs.add("GO:0043473"); GO_IDs.add("GO:0098754");
 
-        for(String ID : GO_IDs) {
-            System.out.println(ID);
-            run(ID);
-        }
+        for(String ID : GO_IDs) run(ID);
     }
 
     public static void run(String ID) throws Exception {
@@ -38,9 +35,6 @@ public class Table {
         valTable.put("n", new ArrayList<>());
         valTable.put("cz", new ArrayList<>());
 
-        // Should print File, Algorithm, Mean, Mean-Stdev
-        System.out.println("MeanCC,,MeanCC-StdevCC,,NumberOfClusters,,MeanClusterSize");
-        System.out.println("Algorithm,Value,Algorithm,Value,Algorithm,Value,Algorithm,Value");
         String folderPath = "../data/" + ID;
 
         /* Algorithms and files */
@@ -135,6 +129,10 @@ public class Table {
         }
 
         /* Print 5 algorithms (TfSCA,MCL,LOUVAIN,INFOMAP,CLIXO) */
+        // Should print File, Algorithm, Mean, Mean-Stdev
+        System.out.println(ID);
+        System.out.println("MeanCC,,MeanCC-StdevCC,,NumberOfClusters,,MeanClusterSize");
+        System.out.println("Algorithm,Value,Algorithm,Value,Algorithm,Value,Algorithm,Value");
         for(int i = 0;i < 5; i++) {
             HashMap<String, String> vals = new HashMap<>();
             for(Map.Entry<String, ArrayList<Tuple>> s : sorteds.entrySet()) {
