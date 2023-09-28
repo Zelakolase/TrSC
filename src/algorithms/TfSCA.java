@@ -1,0 +1,188 @@
+package algorithms;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import lib.Graph;
+
+/**
+ * Classification for undirected weighted graph
+ * @author Morad A.
+ * NOTE: COV is a deprecated term 
+ */
+public class TfSCA {
+    public Graph G;
+    public double headCutoff, unclusteredCutoff, loopMultiplier;
+    public boolean moreClusters = false;
+    public ArrayList<String> unclustered;
+    public ArrayList<String> heads;
+    public boolean moreClusterss = false;
+    public TfSCA(Graph tG, double tHC, double tUC, double tLM, boolean moreClusters, boolean moreClusterss) {
+        G = tG;
+        headCutoff = tHC;
+        unclusteredCutoff = tUC;
+        tLM = loopMultiplier;
+        this.moreClusters = moreClusters;
+        this.moreClusterss = moreClusterss;
+    }
+
+    public ArrayList<ArrayList<String>> run() {
+        ArrayList<ArrayList<String>> clusters = new ArrayList<>();
+        /* Triangle Amplification */
+        for(String node : G.nodes.keySet()) {
+            /* Get outdegree */
+            ArrayList<String> outdegrees = G.getOutdegree(node);
+            outdegrees.addAll(G.getIndegree(node)); // -> Indegrees
+            /* for each outdegree, get the outdegree */
+            for(String outdegree : outdegrees) {
+                ArrayList<String> odOutdegrees = G.getOutdegree(outdegree);
+                odOutdegrees.addAll(G.getIndegree(node));
+                odOutdegrees.retainAll(outdegrees);
+                
+                for(String common : odOutdegrees) {
+                    G.editWeight(node, common, G.getWeight(node, common) * (loopMultiplier+1.0));
+                    G.editWeight(outdegree, common, G.getWeight(outdegree, common) * (loopMultiplier+1.0));
+                }
+            }
+        }
+        /* 1. Node property for COV calculation */
+        COVCalculation();
+        /* 2. Classify Unclustered and head node names */
+        heads = headClassify(G.nodes.keySet());
+        unclustered = unclusteredClassify();
+        ArrayList<String> clusteredNodes = new ArrayList<>();
+        /* 3. Iterate over head */
+        for(String head : heads) {
+            HashMap<String, Double> DegreeWeights = new HashMap<>();
+            ArrayList<String> headOutDegrees = G.getOutdegree(head);
+            ArrayList<String> headInDegrees = G.getIndegree(head);
+
+            for(String out : headOutDegrees) DegreeWeights.put(out, G.getWeight(head, out));
+            for(String in : headInDegrees) DegreeWeights.put(in, G.getWeight(in, head));
+
+            List<String> topKeys = DegreeWeights.entrySet().stream().filter(e -> e.getValue() >= DegreeWeights.values().stream().sorted().skip((int)(Math.ceil(DegreeWeights.size() * 0.5))).findFirst().orElse(0.0)).map(Map.Entry::getKey).collect(Collectors.toList());
+
+            topKeys.add(head);
+
+            clusters.add(new ArrayList<>(topKeys));
+            clusteredNodes.addAll(topKeys);
+        }
+
+        if(! moreClusters) return clusters;
+        
+        /* If we want more clusters */
+        ArrayList<String> leftOverNodes = new ArrayList<>(G.nodes.keySet());
+        leftOverNodes.removeAll(heads);
+        leftOverNodes.removeAll(clusteredNodes);
+
+        while (leftOverNodes.size() > 0) {
+            ArrayList<String> headss = headClassify(new HashSet<String>(leftOverNodes));
+            for (String loN : headss) {
+                /* Find outdegrees and their weight */
+                ArrayList<String> headOutDegrees = G.getOutdegree(loN);
+                ArrayList<String> headInDegrees = G.getIndegree(loN);
+                //headInDegrees.removeAll(unclustered);
+                //headOutDegrees.removeAll(unclustered);
+                HashMap<String, Double> headOutDegreeWeights = new HashMap<>();
+                for(String outDegree : headOutDegrees) headOutDegreeWeights.put(outDegree, G.getWeight(loN, outDegree));
+                for(String outDegree : headInDegrees) headOutDegreeWeights.put(outDegree, G.getWeight(outDegree, loN));
+                /* Find highest 50% nodes with weights */
+                List<String> topKeys = headOutDegreeWeights.entrySet().stream().filter(e -> e.getValue() >= headOutDegreeWeights.values().stream().sorted().skip((int)(Math.ceil(headOutDegreeWeights.size() * 0.5))).findFirst().orElse(0.0)).map(Map.Entry::getKey).collect(Collectors.toList());
+                /* Cluster them */
+                topKeys.add(loN);
+                clusters.add(new ArrayList<>(topKeys));
+                clusteredNodes.addAll(topKeys);
+            }
+
+            leftOverNodes.removeAll(clusteredNodes);
+        }
+
+        return clusters;
+    }
+
+    public void COVCalculation() {
+        /* 1. Iterate over all nodes */
+        for(String node : G.nodes.keySet()) {
+            ArrayList<Double> weights = new ArrayList<>();
+
+            ArrayList<String> Indegrees = G.getIndegree(node);
+            ArrayList<String> Outdegrees = G.getOutdegree(node);
+
+            for(String indegree : Indegrees) weights.add(G.getWeight(indegree, node));
+            for(String outdegree : Outdegrees) weights.add(G.getWeight(node, outdegree));
+
+            double sum = 0.0;
+            for (double num : weights) sum += num;
+            double mean = sum / weights.size();
+
+            double variance = 0.0;
+            for (double num : weights) variance += Math.pow(num - mean, 2);
+
+            /* 
+             * You can change the formula to see if accuracy is better
+             * If you have an equation that can result in a better accuracy, please contact me at Zelakolase@tuta.io
+             * weights.size is the number of edges (indeg/outdeg) for a specific node
+             */
+            double stddev = mean - (variance / weights.size());
+
+            // COV is a deprecated term, too lazy to change it tho
+            G.nodes.get(node).put("COV", String.valueOf(stddev));
+        }
+    }
+
+    public ArrayList<String> headClassify(Set<String> nodes) {
+        ArrayList<String> out = new ArrayList<String>();
+        /* 1. Find the N highest COV nodes */
+        PriorityQueue<String> pq = new PriorityQueue<>(G.nodes.size(), new Comparator<String>() {
+            public int compare(String node1, String node2) {
+                double COV1 = Double.parseDouble(G.nodes.get(node1).get("COV"));
+                double COV2 = Double.parseDouble(G.nodes.get(node2).get("COV"));
+                return (int) Math.round(COV2 - COV1);
+            }
+        });
+
+        /* Adds nodes to the custom comparator */
+        for (String node : nodes) {
+            pq.offer(node);
+        }
+
+        /* Draws N nodes from custom comparator */
+        for (int i = 0; i < (headCutoff * nodes.size()) && !pq.isEmpty(); i++) {
+            out.add(pq.poll());
+        }
+
+        return out;
+    }
+
+    // Unclassified is deprecated term, it is transition proteins
+    public ArrayList<String> unclusteredClassify() {
+        ArrayList<String> out = new ArrayList<String>();
+        /* 1. Find the N highest COV nodes */
+        PriorityQueue<String> pq = new PriorityQueue<>(G.nodes.size(), new Comparator<String>() {
+            public int compare(String node1, String node2) {
+                double COV1 = Double.parseDouble(G.nodes.get(node1).get("COV"));
+                double COV2 = Double.parseDouble(G.nodes.get(node2).get("COV"));
+                return (int) Math.round(COV1 - COV2);
+            }
+        });
+
+        /* Adds nodes to the custom comparator */
+        for (String node : G.nodes.keySet()) {
+            if(G.getIndegree(node).size() + G.getOutdegree(node).size() > 1) pq.offer(node);
+        }
+
+        /* Draws N nodes from custom comparator */
+        for (int i = 0; i < (unclusteredCutoff * G.nodes.size()) && !pq.isEmpty(); i++) {
+            out.add(pq.poll());
+        }
+
+        return out;
+    }
+}
