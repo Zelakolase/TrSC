@@ -84,6 +84,11 @@ public class Graph {
         }
     }
 
+    // Note: Multiplier is 1.2 for 20% and so on
+    public void multiplyWeight(String src, String dest, double multiplier) {
+        editWeight(src, dest, getWeight(src, dest) * 1.0 + multiplier);
+    }
+
     public Graph subcluster(ArrayList<String> nodes) {
         Graph out = new Graph();
 
