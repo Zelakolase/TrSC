@@ -199,7 +199,7 @@ public class TfSCA {
              * me at Zelakolase@tuta.io
              * weights.size is the number of edges (indeg/outdeg) for a specific node
              */
-            double stddev = mean - (variance / weights.size());
+            double stddev = mean - Math.sqrt(variance);
 
             // COV is a deprecated term, too lazy to change it tho
             G.nodes.get(node).put("COV", String.valueOf(stddev));
