@@ -1,108 +1,132 @@
 package lib;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
 
+/**
+ * Undirected weighted graph object
+ * @author Morad
+ */
+
+@SuppressWarnings("unchecked")
 public class Graph {
-    /*
-     * Every element in edgeTable is an Arraylist where index=0 is src-node, index=1 is dest-node, index=2 is the weight
+    /**
+     * Key: Src./Dest. node name | Value: [0: (Key: Property name | Value: Property value) | 1: (Key: Dest./Src. node name | Value: Weight)]
+     * Expect all nodes in G.Key and G.Value.1.Key.
+     * Duplicate reciprocal entries exist by design to enhance performance.
      */
-    public ArrayList<ArrayList<String>> edgeTable = new ArrayList<>();
-    /*
-     * Every pair is a node and its attributes, where the valuealue is a hashmap its key is property name and value is property v
+    public HashMap<String, List<HashMap>> G = new HashMap<>();
+
+    /**
+     * Inserts new edge (and nodes) to Graph Object
+     * @param N1 One of edge end nodes name
+     * @param N2 The other edge end node name
+     * @param Weight The decimal weight between N1 and N2 (and vice versa)
      */
-    public HashMap<String, HashMap<String, String>> nodes = new HashMap<>();
-
-    public void importTSV(String data, String srcColumn, String destColumn, String weightColumn) {
-        /* Converts TSV format to proper CSV format */
-        data = data.replaceAll("\t", ",") // Tab character to [,] String (what is in the brackets)
-        .replaceFirst("#", ""); // Remove the first '#' to be a double qoute
-        data = data.substring(0, data.length() - 2);
-
-        /* Get the column arrangement */
-        String[] lines = data.split("\n");
-        String headers[] = lines[0].split(",");
-
-        int srcIndex = 0; int destIndex = 0; int weightIndex = 0;
-
-        for(int i = 0; i < headers.length; i++) {
-            if(headers[i].equals(srcColumn)) srcIndex = i;
-            if(headers[i].equals(destColumn)) destIndex = i;
-            if(headers[i].equals(weightColumn)) weightIndex = i;
-        }
-
-        /* Add data */
-        for(int i = 1;i < lines.length; i++) {
-            String[] line = lines[i].split(",");
-            ArrayList<String> row = new ArrayList<>(3);
-            row.add(""); row.add(""); row.add("");
-            for(int j = 0;j < line.length; j++) {
-                if(j == srcIndex) {
-                    row.set(0, line[j]);
-                    nodes.putIfAbsent(line[j], new HashMap<>());
-                }
-                if(j == destIndex) {
-                    row.set(1, line[j]);
-                    nodes.putIfAbsent(line[j], new HashMap<>());
-                }
-                if(j == weightIndex) row.set(2, line[j]);
-            }
-
-            edgeTable.add(row);
-        }
-    }
-
-    public ArrayList<String> getIndegree(String nodeName) {
-        ArrayList<String> out = new ArrayList<>();
-
-        for(ArrayList<String> row : edgeTable) {
-            if(row.get(1).equals(nodeName)) out.add(row.get(0));
-        }
+    public void insert(String N1, String N2, double Weight) {
+        /* 1. Whether to add input node(s) to G.Key */
+        boolean addN1toGKey = ! G.containsKey(N1);
+        boolean addN2toGKey = ! G.containsKey(N2);
         
-        return out;
+        /* 2. Add one/all/none input nodes to G.Key */
+        if(addN1toGKey) G.put(N1, Arrays.asList(new HashMap<String, String>(), new HashMap<String, Double>()));
+        if(addN2toGKey) G.put(N2, Arrays.asList(new HashMap<String, String>(), new HashMap<String, Double>()));
+
+        /* 3. Put Connection Entry */
+        G.get(N1).get(1).put(N2, Weight);
+        G.get(N2).get(1).put(N1, Weight);
     }
 
-    public ArrayList<String> getOutdegree(String nodeName) {
-        ArrayList<String> out = new ArrayList<>();
+    /**
+     * Get the decimal weight between N1 and N2
+     * @param N1 One of edge end nodes name
+     * @param N2 The other edge end node name
+     * @return The decimal weight between N1 and N2 (and vice versa)
+     */
+    public double getWeight(String N1, String N2) {
+        return (double) G.get(N2).get(1).get(N1);
+    }
 
-        for(ArrayList<String> row : edgeTable) {
-            if(row.get(0).equals(nodeName)) out.add(row.get(1));
+    /**
+     * Modify edge weight between N1 and N2
+     * @param N1 One of edge end nodes name
+     * @param N2 The other edge end node name
+     * @param newWeight The [new] decimal weight between N1 and N2 (and vice versa)
+     */
+    public void editWeight(String N1, String N2, double newWeight) {
+        /* 1. N1 to N2 edit */
+        G.get(N1).get(1).replace(N2, newWeight);
+        /* 2. N2 to N1 edit */
+        G.get(N2).get(1).replace(N1, newWeight);
+    }
+    
+    /**
+     * Multiplies the edge weight between N1 and N2 by a factor
+     * @param N1 One of edge end nodes name
+     * @param N2 The other edge end node name
+     * @param weightMultiplier The weight multiplier [1.5:+50%, 2.0:+100%, etc..]
+     */
+    public void multiplyWeight(String N1, String N2, double weightMultiplier) {
+        double oldWeight = getWeight(N1, N2);
+        editWeight(N1, N2, oldWeight * weightMultiplier);
+    }
+
+    /**
+     * Get all connected nodes with node N
+     * @param N The name of node
+     * @return All node names connected to node N
+     */
+    public Set<String> getConnectedNodes(String N) {
+        return G.get(N).get(1).keySet();
+    }
+
+    /**
+     * Make a new graph object with all nodes in input and their interconnected edges
+     * @param Nodes Node names to be included in the new sub-cluster
+     * @return The sub-cluster graph object
+     */
+    public Graph subcluster(ArrayList<String> Nodes) {
+        Graph tempG = new Graph();
+
+        for(String node : Nodes) {
+            HashMap<String, Double> nodeOldConnections = G.get(node).get(1);
+            nodeOldConnections.keySet().retainAll(Nodes);
+            tempG.G.put(node, Arrays.asList(G.get(node).get(0), new HashMap<>(nodeOldConnections)));
         }
-        
-        return out;
+
+        return tempG;
     }
 
-    public double getWeight(String src, String dest) {
-        for(ArrayList<String> row : edgeTable) if(row.get(0).equals(src)) if(row.get(1).equals(dest)) return Double.parseDouble(row.get(2));
-        return Integer.MIN_VALUE;
+    /**
+     * Adds a property name and value to node N
+     * @param N Target node name
+     * @param propertyName Name of N property
+     * @param propertyValue Value of N property
+     */
+    public void addProperty(String N, String propertyName, String propertyValue) {
+        G.get(N).get(0).put(propertyName, propertyValue);
     }
 
-    public void editWeight(String src, String dest, double newWeight) {
-        for(ArrayList<String> row : edgeTable) if(row.get(0).equals(src)) if(row.get(1).equals(dest)) {
-            row.set(2, String.valueOf(newWeight));
-            break;
-        }
+    /**
+     * Edit property value for a specific property name in node N
+     * @param N Target node name
+     * @param propertyName Target N property name
+     * @param propertyNewValue New value for property in node N
+     */
+    public void editProperty(String N, String propertyName, String propertyNewValue) {
+        G.get(N).get(0).replace(propertyName, propertyNewValue);
     }
 
-    // Note: Multiplier is 1.2 for 20% and so on
-    public void multiplyWeight(String src, String dest, double multiplier) {
-        editWeight(src, dest, getWeight(src, dest) * 1.0 + multiplier);
+    /**
+     * Get the property value for a specific property in node N
+     * @param N Target node name
+     * @param propertyName Target N property name
+     * @return The property value desired
+     */
+    public String getProperty(String N, String propertyName) {
+        return (String) G.get(N).get(0).get(propertyName);
     }
-
-    public Graph subcluster(ArrayList<String> nodes) {
-        Graph out = new Graph();
-
-        for(String node : nodes) {
-            /* 1. Add attributes */
-            out.nodes.put(node, this.nodes.get(node));
-        }
-
-        for(ArrayList<String> edge : edgeTable) {
-            /* 2. Add all edges where src-node and dest-node exist within nodes */
-            if(nodes.contains(edge.get(0)) && nodes.contains(edge.get(1))) out.edgeTable.add(new ArrayList<>(edge));
-        }
-
-        return out;
-    }
-
 }
