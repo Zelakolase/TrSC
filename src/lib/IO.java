@@ -4,6 +4,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
+/**
+ * Standard Disk IO Library
+ * @author Morad
+ */
 public class IO {
     /**
      * Reads file as byte array
