@@ -1,0 +1,121 @@
+package algorithms;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import lib.Graph;
+
+@SuppressWarnings("unchecked")
+public class Clustering {
+    public Graph G;
+    ArrayList<String> headNodes = new ArrayList<>();
+    ArrayList<String> transitionNodes = new ArrayList<>();
+
+    public Clustering(Graph inG) {
+        G = inG;
+    }
+
+    /**
+     * Makes the clustering process
+     * @param headCutoff The percentage of nodes to be heads, based on the highest ranking. [0.1:10%,..]
+     * @param transitionCutoff The percentage of nodes to be considered transitionary, based on the lowest ranking. [0.1:10%,..]
+     * @param loopMultiplier Triangle edge weight multiplier
+     * @return An array list of sub-graphs of clusters
+     */
+    public synchronized ArrayList<Graph> cluster(double headCutoff, double transitionCutoff, double loopMultiplier) {
+        ArrayList<Graph> subGraphs = new ArrayList<>();
+        Set<String> leftoverNodes = new HashSet<>(G.G.keySet());
+        leftoverNodes.removeAll(headNodes);
+        leftoverNodes.removeAll(transitionNodes);
+
+
+        // TODO: 0. Triangle weight amplification
+        // 1. Calculate ranking equation for nodes
+        rankEqCalc();
+        // 2. Classify heads and transition, based on headCutoff and transitionCutoff
+        rank(headCutoff, transitionCutoff);
+        // 3. Iterate over heads
+        for(String headNodeName : headNodes) {
+            /* Key: Connected Node Name | Value: The edge weight between the key and headNodeName */
+            HashMap<String, Double> connectedNodes = G.G.get(headNodeName).get(1);
+            // 3.1. Find top 50% highest edges
+            List<String> topKeys = connectedNodes.entrySet().stream()
+                    .filter(e -> e.getValue() >= connectedNodes.values().stream().sorted()
+                            .skip((int) (Math.ceil(connectedNodes.size() * 0.5))).findFirst().orElse(-1.0))
+                    .map(Map.Entry::getKey).collect(Collectors.toList());
+            topKeys.add(headNodeName); // Add the head node to the cluster
+
+            leftoverNodes.removeAll(topKeys);
+            subGraphs.add(G.subcluster(topKeys));
+        }
+        // 4. Iterate over Leftover (Unprocessed nodes)
+        while(leftoverNodes.size() > 0) {
+            /* Key: Connected Node Name | Value: The edge weight between the key and headNodeName */
+            HashMap<String, Double> connectedNodes = G.G.get(leftoverNodes.iterator().next()).get(1);
+            // 3.1. Find top 50% highest edges
+            List<String> topKeys = connectedNodes.entrySet().stream()
+                    .filter(e -> e.getValue() >= connectedNodes.values().stream().sorted()
+                            .skip((int) (Math.ceil(connectedNodes.size() * 0.5))).findFirst().orElse(-1.0))
+                    .map(Map.Entry::getKey).collect(Collectors.toList());
+            topKeys.add(leftoverNodes.iterator().next()); // Add the head node to the cluster
+
+            leftoverNodes.removeAll(topKeys);
+            subGraphs.add(G.subcluster(topKeys));
+        }
+
+        return subGraphs;
+    }
+
+    /**
+     * Ranks the nodes based on an equation
+     */
+    private synchronized void rankEqCalc() {
+        for(String node : G.G.keySet()) {
+            /* Equation: 1.5*mean(weights) - 0.5*stdev(weights) */
+            
+            // 1. Get all connected nodes and their weights
+            ArrayList<Double> weights = new ArrayList<>();
+            Set<String> connectedNodeNames = G.getConnectedNodes(node);
+            for(String endNodeName : connectedNodeNames) weights.add(G.getWeight(endNodeName, node));
+            // 2. Sum all node weights
+            double sumWeights = 0;
+            for(double weight : weights) sumWeights += weight;
+            // 3. Calculate the mean
+            double meanWeights = sumWeights / connectedNodeNames.size();
+            // 4. Calculate the stdev
+            double stdev = 0;
+            for(double weight : weights) stdev += Math.pow(weight - meanWeights, 2);
+            stdev = Math.sqrt(stdev);
+            // 5. Insert property
+            G.addProperty(node, "rankValue", String.valueOf(1.5*meanWeights - 0.5*stdev));
+        }
+    }
+
+    /**
+     * Ranks nodes based on rankValue property
+     * @param headCutoff The percentage of nodes to be heads, based on the highest ranking. [0.1:10%,..]
+     * @param transitionCutoff The percentage of nodes to be considered transitionary, based on the lowest ranking. [0.1:10%,..]
+     */
+    public synchronized void rank(double headCutoff, double transitionCutoff) {
+        // 0. Node key set to array
+        String[] nodes = G.G.keySet().toArray(new String[G.G.size()]);
+        // 1. Sort array based on rankValue
+        Arrays.sort(nodes, (node1, node2) -> {
+            double rankVal1 = Double.parseDouble(G.getProperty((String) node1, "rankValue"));
+            double rankVal2 = Double.parseDouble(G.getProperty((String) node2, "rankValue"));
+            return Double.compare(rankVal2, rankVal1); // Descending order
+        });
+        // 2. Get Heads
+        int topIndex = (int) Math.ceil(headCutoff * nodes.length);
+        headNodes.addAll(Arrays.asList(Arrays.copyOfRange(nodes, 0, topIndex)));
+        // 3. Get Transitions
+        int bottomIndex = (int) Math.floor(transitionCutoff * nodes.length);
+        transitionNodes.addAll(Arrays.asList(Arrays.copyOfRange(nodes, bottomIndex, nodes.length)));
+    }
+}

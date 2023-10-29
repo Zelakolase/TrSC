@@ -1,6 +1,5 @@
 package lib;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -85,15 +84,15 @@ public class Graph {
 
     /**
      * Make a new graph object with all nodes in input and their interconnected edges
-     * @param Nodes Node names to be included in the new sub-cluster
+     * @param topKeys Node names to be included in the new sub-cluster
      * @return The sub-cluster graph object
      */
-    public Graph subcluster(ArrayList<String> Nodes) {
+    public synchronized Graph subcluster(List<String> topKeys) {
         Graph tempG = new Graph();
 
-        for(String node : Nodes) {
+        for(String node : topKeys) {
             HashMap<String, Double> nodeOldConnections = G.get(node).get(1);
-            nodeOldConnections.keySet().retainAll(Nodes);
+            nodeOldConnections.keySet().retainAll(topKeys);
             tempG.G.put(node, Arrays.asList(G.get(node).get(0), new HashMap<>(nodeOldConnections)));
         }
 
@@ -129,4 +128,6 @@ public class Graph {
     public String getProperty(String N, String propertyName) {
         return (String) G.get(N).get(0).get(propertyName);
     }
+
+    /* I will NOT delete node properties, so I won't make the function */
 }
