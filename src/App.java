@@ -13,8 +13,8 @@ import lib.SparkDB;
 public class App {
     public static void main(String[] args) {
         /* 0. Constants */
-        double headCutoff = 0.35;
-        double transitionCutoff = 0.15;
+        double headCutoff = 0.25;
+        double transitionCutoff = 0.1;
         /* 1. GO IDs */
         ArrayList<String> GOIDs = new ArrayList<>();
         GOIDs.add("GO:0016032"); GOIDs.add("GO:0022414"); GOIDs.add("GO:0040007"); GOIDs.add("GO:0000003"); 
@@ -47,7 +47,7 @@ public class App {
                 if(name.equals("TrSC")) {
                     /* Cluster using TrSC */
                     Clustering obj = new Clustering(G);
-                    ArrayList<Graph> results = obj.cluster(headCutoff, transitionCutoff, 1.0);
+                    ArrayList<Graph> results = obj.cluster(headCutoff, transitionCutoff, 1.0, 1.0);
                     insertClusterData(results, resultTable, "TrSC");
                 }
 
@@ -150,7 +150,7 @@ public class App {
      * @param resultsTable Target results table
      * @param algorithm Algorithm name
      */
-    public synchronized static void insertClusterData(ArrayList<Graph> clusters, HashMap<String, ArrayList<Tuple>> resultsTable, String algorithm) {
+    public  static void insertClusterData(ArrayList<Graph> clusters, HashMap<String, ArrayList<Tuple>> resultsTable, String algorithm) {
         ArrayList<Double> GCRs = new ArrayList<>(); // Value for each cluster
         
         double meanClusterSize = 0;
