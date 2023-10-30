@@ -87,7 +87,7 @@ public class Graph {
      * @param topKeys Node names to be included in the new sub-cluster
      * @return The sub-cluster graph object
      */
-    public synchronized Graph subcluster(List<String> topKeys) {
+    public  Graph subcluster(List<String> topKeys) {
         Graph tempG = new Graph();
 
         for(String node : topKeys) {
@@ -129,5 +129,12 @@ public class Graph {
         return (String) G.get(N).get(0).get(propertyName);
     }
 
-    /* I will NOT delete node properties, so I won't make the function */
+    /**
+     * Removes a property
+     * @param N Target node name
+     * @param propertyName Target N property name
+     */
+    public void deleteProperty(String N, String propertyName) {
+        G.get(N).get(0).remove(propertyName);
+    }
 }
