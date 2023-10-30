@@ -26,9 +26,10 @@ public class Clustering {
      * @param headCutoff The percentage of nodes to be heads, based on the highest ranking. [0.1:10%,..]
      * @param transitionCutoff The percentage of nodes to be considered transitionary, based on the lowest ranking. [0.1:10%,..]
      * @param loopMultiplier Triangle edge weight multiplier
+     * @param selectPercent Percentage of edges for head to be included in cluster [1.0:100%]
      * @return An array list of sub-graphs of clusters
      */
-    public synchronized ArrayList<Graph> cluster(double headCutoff, double transitionCutoff, double loopMultiplier) {
+    public  ArrayList<Graph> cluster(double headCutoff, double transitionCutoff, double loopMultiplier, double selectPercent) {
         ArrayList<Graph> subGraphs = new ArrayList<>();
         Set<String> leftoverNodes = new HashSet<>(G.G.keySet());
         leftoverNodes.removeAll(headNodes);
@@ -44,10 +45,10 @@ public class Clustering {
         for(String headNodeName : headNodes) {
             /* Key: Connected Node Name | Value: The edge weight between the key and headNodeName */
             HashMap<String, Double> connectedNodes = G.G.get(headNodeName).get(1);
-            // 3.1. Find top 50% highest edges
+            // 3.1. Find top selectPercent% highest edges
             List<String> topKeys = connectedNodes.entrySet().stream()
                     .filter(e -> e.getValue() >= connectedNodes.values().stream().sorted()
-                            .skip((int) (Math.ceil(connectedNodes.size() * 0.5))).findFirst().orElse(-1.0))
+                            .skip((int) (Math.ceil(connectedNodes.size() * selectPercent))).findFirst().orElse(-1.0))
                     .map(Map.Entry::getKey).collect(Collectors.toList());
             topKeys.add(headNodeName); // Add the head node to the cluster
 
@@ -75,10 +76,12 @@ public class Clustering {
     /**
      * Ranks the nodes based on an equation
      */
-    private synchronized void rankEqCalc() {
+    private void rankEqCalc() {
         for(String node : G.G.keySet()) {
-            /* Equation: 1.5*mean(weights) - 0.5*stdev(weights) */
+            /* Equation: 2*mean(weights) - 1.5*stdev(weights) */
             
+            // 0. Remove rankValue property if it exists
+            G.deleteProperty(node, "rankValue");
             // 1. Get all connected nodes and their weights
             ArrayList<Double> weights = new ArrayList<>();
             Set<String> connectedNodeNames = G.getConnectedNodes(node);
@@ -93,7 +96,7 @@ public class Clustering {
             for(double weight : weights) stdev += Math.pow(weight - meanWeights, 2);
             stdev = Math.sqrt(stdev);
             // 5. Insert property
-            G.addProperty(node, "rankValue", String.valueOf(1.5*meanWeights - 0.5*stdev));
+            G.addProperty(node, "rankValue", String.valueOf(2*meanWeights - 1.5*stdev));
         }
     }
 
@@ -102,19 +105,22 @@ public class Clustering {
      * @param headCutoff The percentage of nodes to be heads, based on the highest ranking. [0.1:10%,..]
      * @param transitionCutoff The percentage of nodes to be considered transitionary, based on the lowest ranking. [0.1:10%,..]
      */
-    public synchronized void rank(double headCutoff, double transitionCutoff) {
-        // 0. Node key set to array
+    public  void rank(double headCutoff, double transitionCutoff) {
+        // 0. New headNodes and transitionNodes objects
+        headNodes = new ArrayList<>();
+        transitionNodes = new ArrayList<>();
+        // 1. Node key set to array
         String[] nodes = G.G.keySet().toArray(new String[G.G.size()]);
-        // 1. Sort array based on rankValue
+        // 2. Sort array based on rankValue
         Arrays.sort(nodes, (node1, node2) -> {
             double rankVal1 = Double.parseDouble(G.getProperty((String) node1, "rankValue"));
             double rankVal2 = Double.parseDouble(G.getProperty((String) node2, "rankValue"));
             return Double.compare(rankVal2, rankVal1); // Descending order
         });
-        // 2. Get Heads
+        // 3. Get Heads
         int topIndex = (int) Math.ceil(headCutoff * nodes.length);
         headNodes.addAll(Arrays.asList(Arrays.copyOfRange(nodes, 0, topIndex)));
-        // 3. Get Transitions
+        // 4. Get Transitions
         int bottomIndex = (int) Math.floor(transitionCutoff * nodes.length);
         transitionNodes.addAll(Arrays.asList(Arrays.copyOfRange(nodes, bottomIndex, nodes.length)));
     }
