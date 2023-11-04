@@ -13,20 +13,21 @@ import lib.SparkDB;
 public class App {
     public static void main(String[] args) {
         /* 0. Constants */
-        double headCutoff = 0.25;
+        double headCutoff = 0.35;
         double transitionCutoff = 0.1;
+        double selectPercent = 1.0;
         /* 1. GO IDs */
         ArrayList<String> GOIDs = new ArrayList<>();
         GOIDs.add("GO:0016032"); GOIDs.add("GO:0022414"); GOIDs.add("GO:0040007"); GOIDs.add("GO:0000003"); 
         GOIDs.add("GO:0040011"); GOIDs.add("GO:0042592"); GOIDs.add("GO:0043473"); GOIDs.add("GO:0098754");
         /* 2. Run function */
-        for(String ID : GOIDs) run(ID, headCutoff, transitionCutoff);
+        for(String ID : GOIDs) run(ID, headCutoff, transitionCutoff, selectPercent);
     }
 
     /**
      * Process a single GO ID
      */
-    public static void run(String GOID, double headCutoff, double transitionCutoff) {
+    public static void run(String GOID, double headCutoff, double transitionCutoff, double selectPercent) {
         /* 0. Constants */
         String GOFolderPath = "../data/" + GOID;
         // Key: Mean/ClusterSize/etc.. | Value: List of 2-tuples (algorithm, value)
@@ -47,7 +48,7 @@ public class App {
                 if(name.equals("TrSC")) {
                     /* Cluster using TrSC */
                     Clustering obj = new Clustering(G);
-                    ArrayList<Graph> results = obj.cluster(headCutoff, transitionCutoff, 1.0, 1.0);
+                    ArrayList<Graph> results = obj.cluster(headCutoff, transitionCutoff, 1.0, selectPercent);
                     insertClusterData(results, resultTable, "TrSC");
                 }
 

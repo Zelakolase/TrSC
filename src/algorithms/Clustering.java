@@ -14,8 +14,8 @@ import lib.Graph;
 @SuppressWarnings("unchecked")
 public class Clustering {
     public Graph G;
-    ArrayList<String> headNodes = new ArrayList<>();
-    ArrayList<String> transitionNodes = new ArrayList<>();
+    public ArrayList<String> headNodes = new ArrayList<>();
+    public ArrayList<String> transitionNodes = new ArrayList<>();
 
     public Clustering(Graph inG) {
         G = inG;
