@@ -3,6 +3,7 @@ Top-ranked Selective Clustering, Protein-Protein Interaction Network Usecase
 
 - [TrSC](#trsc)
   - [Class list (in src/)](#class-list-in-src)
+  - [Indicators](#indicators)
   - [Build and Run](#build-and-run)
   - [License](#license)
   - [Available datasets](#available-datasets)
@@ -11,7 +12,7 @@ Top-ranked Selective Clustering, Protein-Protein Interaction Network Usecase
 ## Class list (in src/)
 - algorithms/
   - **Clustering** : TrSC clustering algorithm (inc. ranking eq.)
-  - **GCR** : Calculation of Graph Completeness Ratio for a Graph object
+  - **ClusterStats** : Calculation of Graph Completeness Ratio and Ratio of Connectivity for a Graph object
 - lib/
   - **GORead** : Reads STRING-DB short TSV file to Graph object
   - **Graph** : Weighted undirected graph object (data structure + CRUD functions)
@@ -19,6 +20,10 @@ Top-ranked Selective Clustering, Protein-Protein Interaction Network Usecase
   - **SparkDB** : Check NaDeSys/SparkDB repository
 - **App** : Make a ranked table comparing the mean GCR, mean-stdev GCR, num. clusters, and mean cluster size for MCL, Louvain, CliXO, infomap, and TrSC for all of the available dataset.
 - **SingleGO** : Makes a report on TrSC clustering for a specified GO term in dataset.
+
+## Indicators
+- Graph Completeness Ratio (GCR): SumWeights divided by SumMaxWeights
+- Ratio of Connectivity (Rc) : Num.Edges divided by Max.Num.Edges
 
 ## Build and Run
 The current runnable classes are **App** and **SingleGO**

@@ -36,6 +36,8 @@ public class App {
         resultTable.put("mean-stdev", new ArrayList<>());
         resultTable.put("n", new ArrayList<>());
         resultTable.put("clustersize", new ArrayList<>());
+        resultTable.put("meanRc", new ArrayList<>());
+        resultTable.put("mean-stdev Rc", new ArrayList<>());
         // Files of algorithm outputs
         ArrayList<String> fileNames = new ArrayList<>();
         fileNames.add("louvain.csv"); fileNames.add("mcl.csv");
@@ -132,15 +134,15 @@ public class App {
         }
         /* 5. Print the results */
         System.out.println(GOID);
-        System.out.println("MeanGCR,,MeanGCR-StdevGCR,,NumberOfClusters,,MeanClusterSize");
-        System.out.println("Algorithm,Value,Algorithm,Value,Algorithm,Value,Algorithm,Value");
+        System.out.println("MeanGCR,,MeanGCR-StdevGCR,,NumberOfClusters,,MeanClusterSize,,MeanRc,,MeanRc-StdevRc");
+        System.out.println("Algorithm,Value,Algorithm,Value,Algorithm,Value,Algorithm,Value,Algorithm,Value,Algorithm,Value");
         for(int i = 0;i < 5; i++) {
             HashMap<String, String> vals = new HashMap<>();
             for(Map.Entry<String, ArrayList<Tuple>> s : sortedResults.entrySet()) {
                 vals.put(s.getKey(), s.getValue().get(i).Algorithm + "," + s.getValue().get(i).value);
             }
 
-            System.out.println(vals.get("mean") + "," + vals.get("mean-stdev") + "," + vals.get("n") + "," + vals.get("clustersize"));
+            System.out.println(vals.get("mean") + "," + vals.get("mean-stdev") + "," + vals.get("n") + "," + vals.get("clustersize") + "," + vals.get("meanRc") + "," + vals.get("mean-stdev Rc"));
         }
     }
 
@@ -153,15 +155,19 @@ public class App {
      */
     public  static void insertClusterData(ArrayList<Graph> clusters, HashMap<String, ArrayList<Tuple>> resultsTable, String algorithm) {
         ArrayList<Double> GCRs = new ArrayList<>(); // Value for each cluster
+        ArrayList<Double> Rcs = new ArrayList<>(); // Value for each cluster
+        
         
         double meanClusterSize = 0;
         double n = 0; // Number of clusters
 
         for(Graph subcluster : clusters) {
-            double GCR = algorithms.GCR.calculate(subcluster);
+            double GCR = algorithms.ClusterStats.GCR(subcluster);
             /* Consider clusters with 4 proteins or more + null check */
             if(subcluster.G.size() >= 4 && GCR == GCR) {
+                double Rc = algorithms.ClusterStats.Rc(subcluster);
                 GCRs.add(GCR);
+                Rcs.add(Rc);
                 meanClusterSize += subcluster.G.size();
                 n++;
             }
@@ -171,16 +177,25 @@ public class App {
 
         double sum = 0.0;
         for (double num : GCRs) sum += num;
-        double mean = sum / GCRs.size();
+        double meanGCR = sum / GCRs.size();
 
         double variance = 0.0;
-        for (double num : GCRs) variance += Math.pow(num - mean, 2);
-        double stddev = Math.sqrt(variance / GCRs.size());
+        for (double num : GCRs) variance += Math.pow(num - meanGCR, 2);
+        double stddevGCR = Math.sqrt(variance / GCRs.size());
 
-        resultsTable.get("mean").add(new Tuple(algorithm, mean));
-        resultsTable.get("mean-stdev").add(new Tuple(algorithm, mean-stddev));
+        variance = 0.0; sum = 0.0;
+        for (double num : Rcs) sum += num;
+        double meanRC = sum / Rcs.size();
+
+        for (double num : Rcs) variance += Math.pow(num - meanRC, 2);
+        double stddevRc = Math.sqrt(variance / Rcs.size());
+
+        resultsTable.get("mean").add(new Tuple(algorithm, meanGCR));
+        resultsTable.get("mean-stdev").add(new Tuple(algorithm, meanGCR-stddevGCR));
         resultsTable.get("n").add(new Tuple(algorithm, n));
         resultsTable.get("clustersize").add(new Tuple(algorithm, meanClusterSize));
+        resultsTable.get("meanRc").add(new Tuple(algorithm, meanRC));
+        resultsTable.get("mean-stdev Rc").add(new Tuple(algorithm, meanRC-stddevRc));
     }
 
     public static class Tuple {

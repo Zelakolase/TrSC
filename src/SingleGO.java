@@ -21,8 +21,8 @@ public class SingleGO {
         double transitionCutoff = 0.15;
         double selectPercent = 0.75;
 
-        //Graph G = new GORead("../data/GO:0000003/interactions.tsv", "node1", "node2", "combined_score").G;
-        Graph G = new GORead("../data/ALS.tsv", "node1", "node2", "combined_score").G;
+        Graph G = new GORead("../data/GO:0000003/interactions.tsv", "node1", "node2", "combined_score").G;
+        //Graph G = new GORead("../data/ALS.tsv", "node1", "node2", "combined_score").G;
         Clustering obj = new Clustering(G);
         long TimeF = System.nanoTime();
         ArrayList<Graph> results = obj.cluster(headCutoff, transitionCutoff, 1.0, selectPercent);
@@ -35,7 +35,7 @@ public class SingleGO {
         double nOverHalf = 0; // Number of clusters over or equal GCR:0.5
 
         for(Graph sub : results) {
-            double GCR = algorithms.GCR.calculate(sub);
+            double GCR = algorithms.ClusterStats.GCR(sub);
             if(sub.G.keySet().size() > 1) {
                 table.put(GCR, sub.G.keySet());
                 GCRs.add(GCR);
@@ -84,7 +84,9 @@ public class SingleGO {
         });
 
         for (Map.Entry<Double, Set<String>> entry : entries) {
-            System.out.println(entry.getValue() + " GCR: " + entry.getKey());
+            /* Use the commented line to get GCR values alongside each cluster */
+            //System.out.println(entry.getValue() + " GCR: " + entry.getKey());
+            System.out.println(entry.getValue());
         }
     }
 }

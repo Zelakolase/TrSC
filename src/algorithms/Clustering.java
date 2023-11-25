@@ -96,7 +96,7 @@ public class Clustering {
             for(double weight : weights) stdev += Math.pow(weight - meanWeights, 2);
             stdev = Math.sqrt(stdev);
             // 5. Insert property
-            G.addProperty(node, "rankValue", String.valueOf(2*meanWeights - 1.5*stdev));
+            G.addProperty(node, "rankValue", String.valueOf(weights.size() + meanWeights - stdev));
         }
     }
 

@@ -18,6 +18,8 @@ public class Graph {
      * Duplicate reciprocal entries exist by design to enhance performance.
      */
     public HashMap<String, List<HashMap>> G = new HashMap<>();
+    /** Number of edges */
+    public long Ne = 0;
 
     /**
      * Inserts new edge (and nodes) to Graph Object
@@ -37,6 +39,8 @@ public class Graph {
         /* 3. Put Connection Entry */
         G.get(N1).get(1).put(N2, Weight);
         G.get(N2).get(1).put(N1, Weight);
+
+        Ne ++;
     }
 
     /**
@@ -90,11 +94,20 @@ public class Graph {
     public  Graph subcluster(List<String> topKeys) {
         Graph tempG = new Graph();
 
+        long tempNe = 0;
         for(String node : topKeys) {
+            /* All edges of the node */
             HashMap<String, Double> nodeOldConnections = G.get(node).get(1);
+            /* Leave only inter-cluster edges */
             nodeOldConnections.keySet().retainAll(topKeys);
+            tempNe += nodeOldConnections.size();
+            /* Copy properties and new inter-cluster edges to tempG */
             tempG.G.put(node, Arrays.asList(G.get(node).get(0), new HashMap<>(nodeOldConnections)));
         }
+
+        //System.out.println(tempNe);
+        tempNe = (long) (tempNe * 0.5); // Edges are reported twice
+        tempG.Ne = tempNe;
 
         return tempG;
     }

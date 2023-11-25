@@ -11,8 +11,9 @@ import lib.Graph;
  * @author Morad
  */
 @SuppressWarnings("unchecked")
-public class GCR {
-    public static double calculate(Graph G) {
+public class ClusterStats {
+    /* SumWeights over SumMaxWeights */
+    public static double GCR(Graph G) {
         double GCR = 0;
         // A. Calculate Denominator [max. num. possible edges] n(n-1) / 2
         int nNodes = G.G.keySet().size();
@@ -39,9 +40,17 @@ public class GCR {
                 }
             }
         }
+        
         // C. Calculate GCR
         GCR = numerator / denominator;
 
         return GCR;
+    }
+
+    /* N.Edges over N.Max.Edges */
+    public static double Rc(Graph G) {
+        int nNodes = G.G.keySet().size();
+        if(nNodes < 2) return 0;
+        return (double) G.Ne / (double) ((nNodes * (nNodes - 1)) / 2);
     }
 }
