@@ -84,7 +84,7 @@ public class Clustering {
             G.deleteProperty(node, "rankValue");
             // 1. Get all connected nodes and their weights
             ArrayList<Double> weights = new ArrayList<>();
-            Set<String> connectedNodeNames = G.getConnectedNodes(node);
+            HashSet<String> connectedNodeNames = new HashSet<>(G.getConnectedNodes(node));
             for(String endNodeName : connectedNodeNames) weights.add(G.getWeight(endNodeName, node));
             // 2. Sum all node weights
             double sumWeights = 0;
@@ -96,7 +96,11 @@ public class Clustering {
             for(double weight : weights) stdev += Math.pow(weight - meanWeights, 2);
             stdev = Math.sqrt(stdev);
             // 5. Insert property
-            G.addProperty(node, "rankValue", String.valueOf(weights.size() + meanWeights - stdev));
+
+            /**
+             * GCR + Rc + meanWeights - stdevWeights
+             */
+            G.addProperty(node, "rankValue", String.valueOf(meanWeights - Math.pow(stdev, 0.5)));
         }
     }
 
@@ -121,7 +125,7 @@ public class Clustering {
         int topIndex = (int) Math.ceil(headCutoff * nodes.length);
         headNodes.addAll(Arrays.asList(Arrays.copyOfRange(nodes, 0, topIndex)));
         // 4. Get Transitions
-        int bottomIndex = (int) Math.floor(transitionCutoff * nodes.length);
-        transitionNodes.addAll(Arrays.asList(Arrays.copyOfRange(nodes, bottomIndex, nodes.length)));
+        int bottomIndex = (int) Math.ceil(transitionCutoff * nodes.length);
+        transitionNodes.addAll(Arrays.asList(Arrays.copyOfRange(nodes, nodes.length - bottomIndex, nodes.length)));
     }
 }
