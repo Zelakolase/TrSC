@@ -32,7 +32,7 @@ The current runnable classes are **App** and **SingleGO**
 `$ cd src/; chmod +x buildAndRun.sh; ./buildAndRun.sh [classname]`
 
 ## License
-Top-ranked Selective Clustering Algorithm © 2023 by Morad A.; Nourhan A.K. is licensed under Attribution-ShareAlike 4.0 International. To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/
+Top-ranked Selective Clustering Algorithm © 2023 by Morad A.; Norhan A.K. is licensed under Attribution-ShareAlike 4.0 International. To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/
 
 ## Available datasets
 All GO terms under GO:0008150 (Biological Process) under 2,000 homosapien proteins:
