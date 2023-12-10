@@ -2,6 +2,11 @@ package lib;
 
 import java.util.ArrayList;
 
+/**
+ * Reads GO TSV and converts it to a Graph Object
+ * @author Morad A.
+ */
+
 public class GORead {
     public Graph G = new Graph();
 
