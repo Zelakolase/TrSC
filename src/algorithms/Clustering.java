@@ -25,18 +25,15 @@ public class Clustering {
      * Makes the clustering process
      * @param headCutoff The percentage of nodes to be heads, based on the highest ranking. [0.1:10%,..]
      * @param transitionCutoff The percentage of nodes to be considered transitionary, based on the lowest ranking. [0.1:10%,..]
-     * @param loopMultiplier Triangle edge weight multiplier
      * @param selectPercent Percentage of edges for head to be included in cluster [1.0:100%]
      * @return An array list of sub-graphs of clusters
      */
-    public  ArrayList<Graph> cluster(double headCutoff, double transitionCutoff, double loopMultiplier, double selectPercent) {
+    public  ArrayList<Graph> cluster(double headCutoff, double transitionCutoff, double selectPercent) {
         ArrayList<Graph> subGraphs = new ArrayList<>();
         Set<String> leftoverNodes = new HashSet<>(G.G.keySet());
         leftoverNodes.removeAll(headNodes);
         leftoverNodes.removeAll(transitionNodes);
 
-
-        // TODO: 0. Triangle weight amplification
         // 1. Calculate ranking equation for nodes
         rankEqCalc();
         // 2. Classify heads and transition, based on headCutoff and transitionCutoff
@@ -86,21 +83,16 @@ public class Clustering {
             ArrayList<Double> weights = new ArrayList<>();
             HashSet<String> connectedNodeNames = new HashSet<>(G.getConnectedNodes(node));
             for(String endNodeName : connectedNodeNames) weights.add(G.getWeight(endNodeName, node));
-            // 2. Sum all node weights
-            double sumWeights = 0;
-            for(double weight : weights) sumWeights += weight;
-            // 3. Calculate the mean
-            double meanWeights = sumWeights / connectedNodeNames.size();
-            // 4. Calculate the stdev
-            double stdev = 0;
-            for(double weight : weights) stdev += Math.pow(weight - meanWeights, 2);
-            stdev = Math.sqrt(stdev);
-            // 5. Insert property
+            // 2. Calculate meanWeights
+            double meanWeights = Stats.mean(weights);
+            // 3. Calculate the stdev
+            double stdevWeights = Stats.stdev(weights, meanWeights);
+            // 4. Insert property
 
             /**
-             * GCR + Rc + meanWeights - stdevWeights
+             * meanWeights - stdevWeights + [nodeDegree / maxNodeDegree]
              */
-            G.addProperty(node, "rankValue", String.valueOf(meanWeights - Math.pow(stdev, 0.5)));
+            G.addProperty(node, "rankValue", String.valueOf(meanWeights - stdevWeights + (weights.size() / Double.parseDouble("" + (G.G.keySet().size() - 1)))));
         }
     }
 
