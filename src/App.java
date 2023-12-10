@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import algorithms.Clustering;
+import algorithms.GPI;
 import lib.GORead;
 import lib.Graph;
 import lib.SparkDB;
@@ -13,9 +14,9 @@ import lib.SparkDB;
 public class App {
     public static void main(String[] args) {
         /* 0. Constants */
-        double headCutoff = 0.35;
+        double headCutoff = 0.4;
         double transitionCutoff = 0.1;
-        double selectPercent = 1.0;
+        double selectPercent = 0.95;
         /* 1. GO IDs */
         ArrayList<String> GOIDs = new ArrayList<>();
         GOIDs.add("GO:0016032"); GOIDs.add("GO:0022414"); GOIDs.add("GO:0040007"); GOIDs.add("GO:0000003"); 
@@ -38,6 +39,7 @@ public class App {
         resultTable.put("clustersize", new ArrayList<>());
         resultTable.put("meanRc", new ArrayList<>());
         resultTable.put("mean-stdev Rc", new ArrayList<>());
+        resultTable.put("GPI", new ArrayList<>());
         // Files of algorithm outputs
         ArrayList<String> fileNames = new ArrayList<>();
         fileNames.add("louvain.csv"); fileNames.add("mcl.csv");
@@ -50,8 +52,8 @@ public class App {
                 if(name.equals("TrSC")) {
                     /* Cluster using TrSC */
                     Clustering obj = new Clustering(G);
-                    ArrayList<Graph> results = obj.cluster(headCutoff, transitionCutoff, 1.0, selectPercent);
-                    insertClusterData(results, resultTable, "TrSC");
+                    ArrayList<Graph> results = obj.cluster(headCutoff, transitionCutoff, selectPercent);
+                    insertClusterData(results, resultTable, "TrSC", G);
                 }
 
                 else if(name.equals("mcl.csv")) {
@@ -80,7 +82,7 @@ public class App {
                         GraphClusters.add(G.subcluster(nodeList));
                     }
 
-                    insertClusterData(GraphClusters, resultTable, "MCL");                    
+                    insertClusterData(GraphClusters, resultTable, "MCL", G);                    
                 }
 
                 else {
@@ -106,7 +108,7 @@ public class App {
                         GraphClusters.add(G.subcluster(nodeList));
                     }
 
-                    insertClusterData(GraphClusters, resultTable, name.split("\\.")[0].toUpperCase()); 
+                    insertClusterData(GraphClusters, resultTable, name.split("\\.")[0].toUpperCase(), G); 
                 }
         }
         /* 3. Wait till all tasks are finished */
@@ -134,15 +136,15 @@ public class App {
         }
         /* 5. Print the results */
         System.out.println(GOID);
-        System.out.println("MeanGCR,,MeanGCR-StdevGCR,,NumberOfClusters,,MeanClusterSize,,MeanRc,,MeanRc-StdevRc");
-        System.out.println("Algorithm,Value,Algorithm,Value,Algorithm,Value,Algorithm,Value,Algorithm,Value,Algorithm,Value");
+        System.out.println("MeanGCR,,MeanGCR-StdevGCR,,NumberOfClusters,,MeanClusterSize,,MeanRc,,MeanRc-StdevRc,,GPI");
+        System.out.println("Algorithm,Value,Algorithm,Value,Algorithm,Value,Algorithm,Value,Algorithm,Value,Algorithm,Value,Algorithm,Value");
         for(int i = 0;i < 5; i++) {
             HashMap<String, String> vals = new HashMap<>();
             for(Map.Entry<String, ArrayList<Tuple>> s : sortedResults.entrySet()) {
                 vals.put(s.getKey(), s.getValue().get(i).Algorithm + "," + s.getValue().get(i).value);
             }
 
-            System.out.println(vals.get("mean") + "," + vals.get("mean-stdev") + "," + vals.get("n") + "," + vals.get("clustersize") + "," + vals.get("meanRc") + "," + vals.get("mean-stdev Rc"));
+            System.out.println(vals.get("mean") + "," + vals.get("mean-stdev") + "," + vals.get("n") + "," + vals.get("clustersize") + "," + vals.get("meanRc") + "," + vals.get("mean-stdev Rc") + "," + vals.get("GPI"));
         }
     }
 
@@ -153,19 +155,18 @@ public class App {
      * @param resultsTable Target results table
      * @param algorithm Algorithm name
      */
-    public  static void insertClusterData(ArrayList<Graph> clusters, HashMap<String, ArrayList<Tuple>> resultsTable, String algorithm) {
+    public  static void insertClusterData(ArrayList<Graph> clusters, HashMap<String, ArrayList<Tuple>> resultsTable, String algorithm, Graph G) {
         ArrayList<Double> GCRs = new ArrayList<>(); // Value for each cluster
         ArrayList<Double> Rcs = new ArrayList<>(); // Value for each cluster
-        
-        
+
         double meanClusterSize = 0;
         double n = 0; // Number of clusters
 
         for(Graph subcluster : clusters) {
-            double GCR = algorithms.ClusterStats.GCR(subcluster);
-            /* Consider clusters with 4 proteins or more + null check */
-            if(subcluster.G.size() >= 4 && GCR == GCR) {
-                double Rc = algorithms.ClusterStats.Rc(subcluster);
+            double GCR = algorithms.Stats.GCR(subcluster);
+            /* Consider clusters with 3 proteins or more + null check */
+            if(subcluster.G.size() >= 3 && GCR == GCR) {
+                double Rc = algorithms.Stats.RC(subcluster);
                 GCRs.add(GCR);
                 Rcs.add(Rc);
                 meanClusterSize += subcluster.G.size();
@@ -196,6 +197,7 @@ public class App {
         resultsTable.get("clustersize").add(new Tuple(algorithm, meanClusterSize));
         resultsTable.get("meanRc").add(new Tuple(algorithm, meanRC));
         resultsTable.get("mean-stdev Rc").add(new Tuple(algorithm, meanRC-stddevRc));
+        resultsTable.get("GPI").add(new Tuple(algorithm, GPI.calculate(clusters, G, 7)));
     }
 
     public static class Tuple {
